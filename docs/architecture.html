@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>terraform-gcp-secret-manager | Architecture</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0b0c0b;color:#f5f2eb;font-family:'Courier New',Courier,monospace;line-height:1.7;padding:0}
+a{color:#c8420a;text-decoration:none}a:hover{text-decoration:underline}
+.container{max-width:1200px;margin:0 auto;padding:2rem}
+header{background:linear-gradient(135deg,#0b0c0b 0%,#1a1b1a 100%);border-bottom:2px solid #c8420a;padding:2rem 0}
+header .container{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem}
+header h1{font-size:1.8rem;letter-spacing:1px}
+.badge{display:inline-flex;align-items:center;gap:.5rem;background:#1a1b1a;border:1px solid #333;border-radius:6px;padding:.4rem .8rem;font-size:.8rem}
+.badge img{height:18px}
+.section{margin:3rem 0}
+.section h2{font-size:1.4rem;color:#c8420a;border-bottom:1px solid #222;padding-bottom:.5rem;margin-bottom:1.5rem}
+.section h3{font-size:1.1rem;color:#f5f2eb;margin:1.5rem 0 .75rem}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem}
+.card{background:#131413;border:1px solid #222;border-radius:8px;padding:1.25rem;transition:border-color .2s}
+.card:hover{border-color:#c8420a}
+.card h3{margin:0 0 .5rem;font-size:1rem;color:#c8420a}
+.card p{font-size:.85rem;color:#aaa}
+.card .stat{font-size:1.6rem;font-weight:bold;color:#f5f2eb}
+.diagram{background:#131413;border:1px solid #222;border-radius:8px;padding:2rem;overflow-x:auto}
+.diagram .row{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:.5rem;margin:.75rem 0}
+.diagram .box{background:#1a1b1a;border:1px solid #c8420a;border-radius:6px;padding:.75rem 1.25rem;text-align:center;font-size:.8rem;min-width:120px}
+.diagram .box.highlight{background:#c8420a;color:#fff;border-color:#c8420a}
+.diagram .arrow{color:#c8420a;font-size:1.2rem}
+table{width:100%;border-collapse:collapse;font-size:.85rem;margin:1rem 0}
+table th{text-align:left;padding:.6rem;background:#1a1b1a;color:#c8420a;border-bottom:2px solid #c8420a}
+table td{padding:.6rem;border-bottom:1px solid #1a1b1a}
+table tr:hover td{background:#131413}
+.checklist{list-style:none;padding:0}
+.checklist li{padding:.4rem 0;padding-left:1.5rem;position:relative;font-size:.9rem}
+.checklist li::before{content:"[x]";position:absolute;left:0;color:#c8420a;font-weight:bold}
+code{background:#1a1b1a;padding:.15rem .4rem;border-radius:3px;font-size:.85rem;color:#c8420a}
+pre{background:#131413;border:1px solid #222;border-radius:8px;padding:1.25rem;overflow-x:auto;font-size:.82rem;line-height:1.6}
+footer{border-top:2px solid #c8420a;margin-top:4rem;padding:2rem 0;text-align:center;font-size:.8rem;color:#555}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem}
+@media(max-width:768px){.grid-2{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+<div class="container">
+<div>
+<h1>terraform-gcp-secret-manager</h1>
+<p style="color:#aaa;font-size:.9rem;margin-top:.25rem">Enterprise Secrets Management on Google Cloud</p>
+</div>
+<div style="display:flex;gap:.75rem;align-items:center">
+<span class="badge"><img src="https://www.gstatic.com/devrel-devsite/prod/v0e0f589edd85502a40d78d7d0f2f25834f5f2f981ee4e9bc3ad30721d1c038af/cloud/images/favicons/onecloud/super_cloud.png" alt="GCP">Google Cloud Platform</span>
+<span class="badge">Terraform Module</span>
+</div>
+</div>
+</header>
+
+<div class="container">
+
+<div class="section">
+<h2>Executive Summary</h2>
+<p>This Terraform module manages secrets throughout their lifecycle in Google Cloud Secret Manager. It supports automatic and user-managed replication strategies with per-region CMEK encryption, secret versioning with enable/disable controls, base64-encoded data, rotation policies, TTL and timestamp-based expiration, Pub/Sub event notifications, version aliasing, and IAM bindings with conditional access. The module enforces role validation for IAM bindings and project ID format validation.</p>
+</div>
+
+<div class="section">
+<h2>Overview</h2>
+<div class="cards">
+<div class="card"><div class="stat">3</div><h3>Resource Types</h3><p>Secrets, Secret Versions, IAM Bindings</p></div>
+<div class="card"><div class="stat">2</div><h3>Replication Modes</h3><p>Automatic with CMEK, User-managed with per-region keys</p></div>
+<div class="card"><div class="stat">5</div><h3>Input Variables</h3><p>Secrets, versions, IAM, labels, project ID</p></div>
+<div class="card"><div class="stat">6</div><h3>Outputs</h3><p>Secret IDs/names, version IDs/names/numbers, project</p></div>
+</div>
+</div>
+
+<div class="section">
+<h2>Architecture Diagram</h2>
+<div class="diagram">
+<div class="row">
+<div class="box highlight">Secret Manager Module</div>
+</div>
+<div class="row"><div class="arrow">|</div></div>
+<div class="row">
+<div class="box">Secrets<br><small>Labels, Annotations</small></div>
+<div class="arrow">--&gt;</div>
+<div class="box">Secret Versions<br><small>Data + Enable/Disable</small></div>
+<div class="arrow">--&gt;</div>
+<div class="box">IAM Bindings<br><small>Conditional Access</small></div>
+</div>
+<div class="row"><div class="arrow">|</div></div>
+<div class="row">
+<div class="box">Auto Replication<br><small>Google-managed</small></div>
+<div class="box">User-Managed<br><small>Region Replicas</small></div>
+<div class="box">CMEK Encryption<br><small>KMS Keys</small></div>
+</div>
+<div class="row"><div class="arrow">|</div></div>
+<div class="row">
+<div class="box">Rotation Policy<br><small>Period + Schedule</small></div>
+<div class="box">TTL / Expiration<br><small>Auto-delete</small></div>
+<div class="box">Pub/Sub Notify<br><small>Event Topics</small></div>
+<div class="box">Version Aliases<br><small>Named References</small></div>
+</div>
+</div>
+</div>
+
+<div class="section">
+<h2>Component Breakdown</h2>
+<div class="grid-2">
+<div>
+<h3>Secrets (<code>google_secret_manager_secret</code>)</h3>
+<p>Core secret resources with labels, annotations, replication config (auto or user-managed with per-region CMEK), rotation policy (period + next time), TTL/expiration for auto-deletion, Pub/Sub topic notifications, and version aliases for named references to specific versions.</p>
+
+<h3>Secret Versions (<code>google_secret_manager_secret_version</code>)</h3>
+<p>Immutable secret data storage with enable/disable toggle. Supports base64-encoded data via <code>is_secret_data_base64</code> flag with automatic decoding. Depends on parent secret creation.</p>
+</div>
+<div>
+<h3>IAM Bindings (<code>google_secret_manager_secret_iam_member</code>)</h3>
+<p>Per-secret IAM member bindings with role validation (secretAccessor, secretVersionAdder, secretVersionManager, admin, viewer, owner, editor). Supports conditional access with CEL expressions for time-bound or attribute-based access.</p>
+
+<h3>Replication Strategies</h3>
+<p>Two modes: (1) Automatic replication with optional CMEK encryption key, or (2) User-managed replication with explicit region replicas, each optionally encrypted with per-region KMS keys for data sovereignty compliance.</p>
+</div>
+</div>
+</div>
+
+<div class="section">
+<h2>Data Flow</h2>
+<div class="diagram">
+<div class="row">
+<div class="box">Application / CI Pipeline</div>
+<div class="arrow">--&gt;</div>
+<div class="box highlight">Secret Manager API</div>
+</div>
+<div class="row"><div class="arrow">|</div></div>
+<div class="row">
+<div class="box">Secret Created</div>
+<div class="arrow">--&gt;</div>
+<div class="box">Replicated (Auto/Managed)</div>
+<div class="arrow">--&gt;</div>
+<div class="box">Encrypted at Rest (CMEK)</div>
+</div>
+<div class="row"><div class="arrow">|</div></div>
+<div class="row">
+<div class="box">Version Added</div>
+<div class="arrow">--&gt;</div>
+<div class="box">Pub/Sub Notification</div>
+<div class="arrow">--&gt;</div>
+<div class="box">Consumer Reads via IAM</div>
+</div>
+<div class="row"><div class="arrow">|</div></div>
+<div class="row">
+<div class="box">Rotation Triggered</div>
+<div class="arrow">--&gt;</div>
+<div class="box">New Version Created</div>
+<div class="arrow">--&gt;</div>
+<div class="box">Old Version Disabled/TTL Expired</div>
+</div>
+</div>
+</div>
+
+<div class="section">
+<h2>Security Controls</h2>
+<table>
+<tr><th>Control</th><th>Implementation</th><th>Details</th></tr>
+<tr><td>Encryption at Rest</td><td>CMEK via Cloud KMS</td><td>Per-secret or per-region encryption keys</td></tr>
+<tr><td>Access Control</td><td>IAM with conditions</td><td>Role validation, CEL conditional access</td></tr>
+<tr><td>Rotation</td><td>Rotation policy</td><td>Configurable period and next rotation time</td></tr>
+<tr><td>Expiration</td><td>TTL and expire_time</td><td>Automatic secret deletion after duration/timestamp</td></tr>
+<tr><td>Audit Trail</td><td>Pub/Sub notifications</td><td>Event-driven alerts on secret changes</td></tr>
+<tr><td>Data Residency</td><td>User-managed replication</td><td>Control which regions store secret data</td></tr>
+<tr><td>Sensitive Handling</td><td>Terraform sensitive</td><td>secret_versions variable marked sensitive</td></tr>
+</table>
+</div>
+
+<div class="section">
+<h2>Industry Adaptation</h2>
+<div class="cards">
+<div class="card"><h3>Financial Services</h3><p>User-managed replication with per-region CMEK. Rotation policies for credential cycling. Conditional IAM for time-limited access.</p></div>
+<div class="card"><h3>Healthcare</h3><p>CMEK encryption for PHI. TTL-based expiration for temporary credentials. Pub/Sub notifications for audit logging.</p></div>
+<div class="card"><h3>SaaS Platforms</h3><p>Version aliases for blue/green secret rotation. Base64 encoding for binary secrets. Auto replication for global availability.</p></div>
+<div class="card"><h3>DevOps / CI/CD</h3><p>Programmatic secret versioning. Workload Identity for keyless access. Pub/Sub integration for secret change events.</p></div>
+</div>
+</div>
+
+<div class="section">
+<h2>Production Readiness Checklist</h2>
+<ul class="checklist">
+<li>Enable CMEK encryption for all secrets</li>
+<li>Configure rotation policies for credentials and API keys</li>
+<li>Set TTL/expiration for temporary secrets</li>
+<li>Apply least-privilege IAM (secretAccessor, not admin)</li>
+<li>Use conditional access for sensitive secrets</li>
+<li>Enable Pub/Sub notifications for audit trail</li>
+<li>Use version aliases for zero-downtime rotation</li>
+<li>Choose user-managed replication for data residency</li>
+<li>Mark secret_versions as sensitive in Terraform state</li>
+</ul>
+</div>
+
+<div class="section">
+<h2>Configuration Reference</h2>
+<table>
+<tr><th>Variable</th><th>Type</th><th>Default</th><th>Description</th></tr>
+<tr><td><code>project_id</code></td><td>string</td><td>required</td><td>GCP project ID (validated)</td></tr>
+<tr><td><code>secrets</code></td><td>map(object)</td><td>{}</td><td>Secrets with replication, rotation, TTL, topics</td></tr>
+<tr><td><code>secret_versions</code></td><td>map(object)</td><td>{}</td><td>Secret data versions (sensitive)</td></tr>
+<tr><td><code>secret_iam_bindings</code></td><td>map(object)</td><td>{}</td><td>IAM bindings with role validation</td></tr>
+<tr><td><code>labels</code></td><td>map(string)</td><td>{}</td><td>Common labels for all secrets</td></tr>
+</table>
+</div>
+
+<div class="section">
+<h2>Deployment</h2>
+<pre>
+terraform init
+terraform plan -out=tfplan
+terraform apply tfplan
+
+# Access a secret
+gcloud secrets versions access latest --secret=YOUR_SECRET --project=YOUR_PROJECT_ID
+</pre>
+</div>
+
+<div class="section">
+<h2>Links</h2>
+<p>
+<a href="https://cloud.google.com/secret-manager/docs">Secret Manager Documentation</a> |
+<a href="https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/secret_manager_secret">Terraform Registry</a> |
+<a href="https://github.com/kogunlowo123/terraform-gcp-secret-manager">GitHub Repository</a> |
+<a href="https://cloud.google.com/secret-manager/docs/cmek">CMEK Documentation</a>
+</p>
+</div>
+
+</div>
+
+<footer>
+<div class="container">
+<p>terraform-gcp-secret-manager | Architecture Documentation</p>
+<p style="margin-top:.5rem">Generated from source analysis | Terraform >= 1.3.0 | Google Provider >= 5.0</p>
+</div>
+</footer>
+</body>
+</html>
