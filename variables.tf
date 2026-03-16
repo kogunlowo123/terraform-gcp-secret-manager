@@ -1,7 +1,3 @@
-###############################################################################
-# General
-###############################################################################
-
 variable "project_id" {
   description = "The GCP project ID where Secret Manager resources will be created."
   type        = string
@@ -18,20 +14,12 @@ variable "labels" {
   default     = {}
 }
 
-###############################################################################
-# Secrets
-###############################################################################
-
 variable "secrets" {
-  description = <<-EOT
-    Map of secrets to create in Secret Manager.
-    Key is the secret_id.
-    EOT
+  description = "Map of secrets to create in Secret Manager, keyed by secret_id."
   type = map(object({
     labels      = optional(map(string), {})
     annotations = optional(map(string), {})
 
-    # Replication configuration — exactly one must be specified
     replication = object({
       auto = optional(object({
         customer_managed_encryption = optional(object({
@@ -48,57 +36,37 @@ variable "secrets" {
       }), null)
     })
 
-    # Rotation
     rotation = optional(object({
       next_rotation_time = optional(string, null)
       rotation_period    = optional(string, null)
     }), null)
 
-    # TTL — automatic deletion after duration
-    ttl = optional(string, null)
-
-    # Expiration — absolute timestamp
+    ttl         = optional(string, null)
     expire_time = optional(string, null)
 
-    # Pub/Sub topic notifications
     topics = optional(list(object({
       name = string
     })), [])
 
-    # Version aliases
     version_aliases = optional(map(string), {})
   }))
   default = {}
 }
 
-###############################################################################
-# Secret Versions
-###############################################################################
-
 variable "secret_versions" {
-  description = <<-EOT
-    Map of secret versions to create.
-    Key is a logical name. secret_id must match a key in var.secrets or be a full resource ID.
-    EOT
+  description = "Map of secret versions to create, keyed by logical name."
   type = map(object({
-    secret_id   = string
-    secret_data = string
-    enabled     = optional(bool, true)
+    secret_id             = string
+    secret_data           = string
+    enabled               = optional(bool, true)
     is_secret_data_base64 = optional(bool, false)
   }))
   default   = {}
   sensitive = true
 }
 
-###############################################################################
-# IAM Bindings
-###############################################################################
-
 variable "secret_iam_bindings" {
-  description = <<-EOT
-    Map of IAM bindings for secrets.
-    Key is a logical name.
-    EOT
+  description = "Map of IAM bindings for secrets, keyed by logical name."
   type = map(object({
     secret_id = string
     role      = string

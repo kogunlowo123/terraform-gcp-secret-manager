@@ -1,12 +1,8 @@
-###############################################################################
-# Secrets
-###############################################################################
-
 resource "google_secret_manager_secret" "this" {
   for_each = var.secrets
 
   secret_id   = each.key
-  labels      = local.secret_labels[each.key]
+  labels      = merge(var.labels, each.value.labels)
   annotations = each.value.annotations
   project     = var.project_id
   ttl         = each.value.ttl
@@ -63,10 +59,6 @@ resource "google_secret_manager_secret" "this" {
   }
 }
 
-###############################################################################
-# Secret Versions
-###############################################################################
-
 resource "google_secret_manager_secret_version" "this" {
   for_each = var.secret_versions
 
@@ -77,12 +69,18 @@ resource "google_secret_manager_secret_version" "this" {
   depends_on = [google_secret_manager_secret.this]
 }
 
-###############################################################################
-# Secret IAM Bindings
-###############################################################################
-
 resource "google_secret_manager_secret_iam_member" "this" {
-  for_each = local.secret_iam_members
+  for_each = merge([
+    for binding_key, binding in var.secret_iam_bindings : {
+      for member in binding.members :
+      "${binding_key}/${member}" => {
+        secret_id = binding.secret_id
+        role      = binding.role
+        member    = member
+        condition = binding.condition
+      }
+    }
+  ]...)
 
   secret_id = each.value.secret_id
   role      = each.value.role
